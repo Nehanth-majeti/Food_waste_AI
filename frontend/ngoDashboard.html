@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>NGO Dashboard</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<div class="layout">
+    <div class="sidebar">
+        <div class="brand"><span>🤝</span> NGO Panel</div>
+        <a href="ngoDashboard.html" class="active"><span class="icon">🍽️</span> All Food</a>
+        <a href="requests.html"><span class="icon">📋</span> My Requests</a>
+        <a href="roleSelect.html" style="margin-top:auto;color:var(--red)"><span class="icon">🚪</span> Sign Out</a>
+    </div>
+    <div class="main">
+        <div class="topbar"><h1>Available Food Items</h1><div class="badge" id="uname"></div></div>
+        <div class="search-bar">
+            <input type="text" id="search" placeholder="🔍 Search food items..." oninput="filter()">
+        </div>
+        <div class="grid" id="items"></div>
+    </div>
+</div>
+<script>
+const API='http://localhost:3000',u=JSON.parse(localStorage.getItem('v4_user'));
+if(!u||u.role!=='NGO') location.href='roleSelect.html';
+document.getElementById('uname').innerText=u.name;
+let allItems=[];
+
+async function load(){
+    const r=await(await fetch(API+'/getItems')).json();
+    if(r.success){allItems=r.items; render(r.items);}
+}
+
+function getTag(exp){
+    const h=(new Date(exp)-new Date())/36e5;
+    if(h<=0) return['Expired','tag-expired'];
+    if(h<=24) return['Critical','tag-critical'];
+    if(h<=72) return['Expiring Soon','tag-soon'];
+    return['Fresh','tag-fresh'];
+}
+
+function render(items){
+    const c=document.getElementById('items');
+    if(items.length===0){c.innerHTML='<p style="color:var(--muted)">No food items available right now.</p>';return;}
+    c.innerHTML=items.map(i=>{
+        const[lbl,cls]=getTag(i.expiry);
+        const img=i.image?API+i.image:'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&q=80';
+        return `<div class="card item-card">
+            <div class="img-wrap"><img src="${img}" onerror="this.src='https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&q=80'"></div>
+            <div class="info">
+                <h3>${i.name}</h3>
+                <div class="meta"><span>📦 ${i.qty} qty</span><span class="tag ${cls}">${lbl}</span></div>
+                <div class="meta" style="margin-top:.4rem"><span>🏨 ${i.hotel_name}</span></div>
+                <button class="btn btn-full btn-sm" style="margin-top:.8rem" onclick="req(${i.id})">Send Request</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function filter(){
+    const s=document.getElementById('search').value.toLowerCase();
+    render(allItems.filter(i=>i.name.toLowerCase().includes(s)));
+}
+
+async function req(id){
+    const r=await(await fetch(API+'/sendRequest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ngo_id:u.id,item_id:id})})).json();
+    if(r.success){alert('Request sent successfully!');load();}
+    else alert('Failed to send request.');
+}
+
+load();
+</script>
+<!-- AI Chatbot Widget -->
+<script src="chatbot.js"></script>
+</body>
+</html>

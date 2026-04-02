@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A* Route Map — SustainAI</title>
+    <meta name="description" content="Live route visualization powered by A* pathfinding algorithm. View optimized delivery routes between Hotels and NGOs on an interactive map.">
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        /* ── CSS Variables ── */
+        :root {
+            --bg: #0a0e1a;
+            --surface: #111827;
+            --card: #1a2236;
+            --border: rgba(255, 255, 255, 0.06);
+            --primary: #6366f1;
+            --primary-glow: rgba(99, 102, 241, 0.3);
+            --green: #22c55e;
+            --yellow: #eab308;
+            --red: #ef4444;
+            --cyan: #06b6d4;
+            --text: #f1f5f9;
+            --muted: #64748b;
+            --radius: 12px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Top Navigation Bar ── */
+        .navbar {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 0 2rem;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            flex-shrink: 0;
+        }
+
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: var(--primary);
+        }
+
+        .navbar-brand span { font-size: 1.4rem; }
+
+        .navbar-center {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .navbar-badge {
+            background: rgba(99, 102, 241, 0.12);
+            border: 1px solid rgba(99, 102, 241, 0.25);
+            color: #a5b4fc;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .delivery-id-badge {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            color: var(--green);
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+
+        .btn-back {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            color: var(--muted);
+            padding: 0.45rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-family: 'Inter', sans-serif;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .btn-back:hover {
+            background: rgba(255,255,255,0.1);
+            color: var(--text);
+            border-color: rgba(255,255,255,0.15);
+        }
+
+        /* ── Main Layout ── */
+        .page-body {
+            display: grid;
+            grid-template-columns: 360px 1fr;
+            flex: 1;
+            min-height: 0;
+            height: calc(100vh - 64px);
+        }
+
+        /* ── Side Panel ── */
+        .side-panel {
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            padding: 1.5rem;
+            gap: 1.2rem;
+        }
+
+        .panel-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        /* ── Route Stats ── */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.8rem;
+        }
+
+        .stat-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1rem;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .stat-card:hover {
+            border-color: rgba(99, 102, 241, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .stat-card .stat-val {
+            font-size: 1.6rem;
+            font-weight: 800;
+            line-height: 1;
+            margin-bottom: 0.4rem;
+        }
+
+        .stat-card.purple .stat-val { color: var(--primary); }
+        .stat-card.green .stat-val { color: var(--green); }
+        .stat-card.cyan .stat-val { color: var(--cyan); }
+        .stat-card.yellow .stat-val { color: var(--yellow); }
+
+        .stat-card .stat-lbl {
+            font-size: 0.7rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            font-weight: 600;
+        }
+
+        /* ── Location Cards ── */
+        .location-section {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1rem 1.1rem;
+        }
+
+        .location-section h4 {
+            font-size: 0.75rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .location-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.8rem;
+            padding: 0.65rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .location-item:last-child { border-bottom: none; }
+
+        .location-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            margin-top: 3px;
+            box-shadow: 0 0 8px currentColor;
+        }
+
+        .location-dot.hotel { background: #3b82f6; color: #3b82f6; }
+        .location-dot.ngo { background: #22c55e; color: #22c55e; }
+
+        .location-info .name {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 0.2rem;
+        }
+
+        .location-info .coords {
+            font-size: 0.75rem;
+            color: var(--muted);
+            font-family: 'Courier New', monospace;
+        }
+
+        /* ── Waypoints List ── */
+        .waypoints-section {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1rem 1.1rem;
+        }
+
+        .waypoints-section h4 {
+            font-size: 0.75rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 0.8rem;
+        }
+
+        .waypoint-track {
+            position: relative;
+            padding-left: 24px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .waypoint-track::-webkit-scrollbar { width: 3px; }
+        .waypoint-track::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+        .waypoint-track::before {
+            content: '';
+            position: absolute;
+            left: 5px;
+            top: 8px;
+            bottom: 8px;
+            width: 2px;
+            background: linear-gradient(to bottom, #3b82f6, #6366f1, #22c55e);
+            border-radius: 2px;
+        }
+
+        .wp-item {
+            position: relative;
+            padding: 0.4rem 0 0.4rem 0.8rem;
+            font-size: 0.75rem;
+            color: var(--muted);
+            animation: wpFadeIn 0.3s ease forwards;
+            opacity: 0;
+        }
+
+        @keyframes wpFadeIn {
+            to { opacity: 1; }
+        }
+
+        .wp-item::before {
+            content: '';
+            position: absolute;
+            left: -20px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--card);
+            border: 2px solid #6366f1;
+        }
+
+        .wp-item.start::before { background: #3b82f6; border-color: #3b82f6; }
+        .wp-item.end::before { background: #22c55e; border-color: #22c55e; }
+
+        .wp-item .wp-tag {
+            font-weight: 700;
+            color: var(--text);
+            display: block;
+            margin-bottom: 0.1rem;
+            font-size: 0.78rem;
+        }
+
+        /* ── Info Box ── */
+        .info-box {
+            background: rgba(99, 102, 241, 0.07);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 10px;
+            padding: 0.9rem 1rem;
+            font-size: 0.8rem;
+            color: #a5b4fc;
+            line-height: 1.5;
+        }
+
+        .info-box strong { color: #c7d2fe; }
+
+        /* ── Controls ── */
+        .map-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+
+        .ctrl-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            background: var(--card);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.65rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-family: 'Inter', sans-serif;
+            font-weight: 500;
+            transition: all 0.2s;
+            width: 100%;
+            text-align: left;
+        }
+
+        .ctrl-btn:hover {
+            background: rgba(99, 102, 241, 0.1);
+            border-color: rgba(99, 102, 241, 0.3);
+            color: #a5b4fc;
+        }
+
+        .ctrl-btn .icon { font-size: 1rem; }
+
+        .ctrl-btn.active {
+            background: rgba(99, 102, 241, 0.15);
+            border-color: rgba(99, 102, 241, 0.4);
+            color: #a5b4fc;
+        }
+
+        /* ── Map Container ── */
+        .map-wrap {
+            position: relative;
+            flex: 1;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            background: #0d1117;
+        }
+
+        /* Map loading overlay */
+        .map-overlay {
+            position: absolute;
+            inset: 0;
+            background: var(--bg);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            z-index: 999;
+            transition: opacity 0.5s ease;
+        }
+
+        .map-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loader-ring {
+            width: 48px;
+            height: 48px;
+            border: 3px solid rgba(99, 102, 241, 0.15);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.9s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .loader-text {
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        /* ── Map Legend Overlay ── */
+        .map-legend {
+            position: absolute;
+            bottom: 2rem;
+            right: 1rem;
+            background: rgba(10, 14, 26, 0.92);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 0.9rem 1.1rem;
+            z-index: 500;
+        }
+
+        .legend-title {
+            font-size: 0.7rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 0.6rem;
+            font-weight: 600;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            font-size: 0.8rem;
+            color: var(--text);
+            margin-bottom: 0.4rem;
+        }
+
+        .legend-item:last-child { margin-bottom: 0; }
+
+        .legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .legend-line {
+            width: 20px;
+            height: 3px;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        /* ── Animate Route Progress ── */
+        .progress-bar-wrap {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            height: 6px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(to right, var(--primary), var(--green));
+            border-radius: 20px;
+            width: 0%;
+            transition: width 0.1s ease;
+        }
+
+        /* ── Error State ── */
+        .error-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            gap: 1rem;
+            color: var(--muted);
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .error-icon { font-size: 3rem; }
+        .error-msg { font-size: 1rem; color: var(--text); font-weight: 600; }
+        .error-sub { font-size: 0.85rem; }
+
+        /* Leaflet dark theme overrides */
+        .leaflet-container {
+            background: #0d1117;
+        }
+
+        .leaflet-tile-pane {
+            filter: brightness(0.7) saturate(0.8) hue-rotate(200deg);
+        }
+
+        .leaflet-popup-content-wrapper {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        }
+
+        .leaflet-popup-tip {
+            background: var(--card);
+        }
+
+        .popup-inner { padding: 0.2rem 0; }
+        .popup-title { font-weight: 700; font-size: 0.95rem; margin-bottom: 0.4rem; color: var(--text); }
+        .popup-row { font-size: 0.8rem; color: var(--muted); margin-bottom: 0.2rem; }
+        .popup-row strong { color: var(--text); }
+
+        /* ── Responsive ── */
+        @media (max-width: 900px) {
+            .page-body {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr;
+                height: auto;
+            }
+            .side-panel {
+                height: auto;
+                max-height: 50vh;
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+            }
+            .map-wrap {
+                height: 60vh;
+            }
+        }
+
+        /* ── Pulse animation for markers ── */
+        .pulse-ring {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 2px solid currentColor;
+            animation: pulse 2s infinite;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        @keyframes pulse {
+            0% { transform: translate(-50%, -50%) scale(0.8); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(2.5); opacity: 0; }
+        }
+
+        /* Skeleton loader */
+        .skeleton {
+            background: linear-gradient(90deg, var(--card) 25%, rgba(255,255,255,0.04) 50%, var(--card) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 6px;
+            height: 1.2rem;
+        }
+
+        @keyframes shimmer {
+            to { background-position: -200% 0; }
+        }
+    </style>
+</head>
+<body>
+    <!-- ── Top Navigation ── -->
+    <nav class="navbar">
+        <div class="navbar-brand">
+            <span>🗺️</span> SustainAI Route Map
+        </div>
+        <div class="navbar-center">
+            <span class="navbar-badge">⚡ A* Algorithm</span>
+            <span class="delivery-id-badge" id="badgeId">Loading...</span>
+        </div>
+        <a href="deliveryStatus.html" class="btn-back" id="backBtn">
+            ← Back to Deliveries
+        </a>
+    </nav>
+
+    <!-- ── Main Body ── -->
+    <div class="page-body">
+
+        <!-- ── Side Panel ── -->
+        <aside class="side-panel" id="sidePanel">
+
+            <!-- Title -->
+            <div class="panel-title">
+                🧭 Route Analysis
+            </div>
+
+            <!-- Stats -->
+            <div class="stats-grid">
+                <div class="stat-card purple">
+                    <div class="stat-val" id="statDist"><div class="skeleton" style="width:60px;margin:0 auto"></div></div>
+                    <div class="stat-lbl">Distance (km)</div>
+                </div>
+                <div class="stat-card green">
+                    <div class="stat-val" id="statTime"><div class="skeleton" style="width:50px;margin:0 auto"></div></div>
+                    <div class="stat-lbl">Est. Time (min)</div>
+                </div>
+                <div class="stat-card cyan">
+                    <div class="stat-val" id="statNodes"><div class="skeleton" style="width:40px;margin:0 auto"></div></div>
+                    <div class="stat-lbl">Waypoints</div>
+                </div>
+                <div class="stat-card yellow">
+                    <div class="stat-val" id="statSpeed">30</div>
+                    <div class="stat-lbl">Avg Speed km/h</div>
+                </div>
+            </div>
+
+            <!-- Route Progress -->
+            <div>
+                <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--muted);margin-bottom:0.4rem;">
+                    <span>Route Drawing</span>
+                    <span id="progressPct">0%</span>
+                </div>
+                <div class="progress-bar-wrap">
+                    <div class="progress-bar-fill" id="progressFill"></div>
+                </div>
+            </div>
+
+            <!-- Locations -->
+            <div class="location-section">
+                <h4>📍 Locations</h4>
+                <div class="location-item">
+                    <div class="location-dot hotel"></div>
+                    <div class="location-info">
+                        <div class="name">🏨 Hotel (Origin)</div>
+                        <div class="coords" id="hotelCoords">Loading coordinates...</div>
+                    </div>
+                </div>
+                <div class="location-item">
+                    <div class="location-dot ngo"></div>
+                    <div class="location-info">
+                        <div class="name">🤝 NGO (Destination)</div>
+                        <div class="coords" id="ngoCoords">Loading coordinates...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Waypoints -->
+            <div class="waypoints-section">
+                <h4>🛣️ Path Waypoints (<span id="wpCount">0</span>)</h4>
+                <div class="waypoint-track" id="waypointTrack">
+                    <div class="wp-item"><div class="skeleton"></div></div>
+                    <div class="wp-item"><div class="skeleton" style="width:80%"></div></div>
+                    <div class="wp-item"><div class="skeleton" style="width:90%"></div></div>
+                </div>
+            </div>
+
+            <!-- Map Controls -->
+            <div>
+                <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:0.6rem;font-weight:600;">🎮 Map Controls</div>
+                <div class="map-controls">
+                    <button class="ctrl-btn" id="btnAnimate" onclick="replayAnimation()">
+                        <span class="icon">▶️</span> Replay Route Animation
+                    </button>
+                    <button class="ctrl-btn" id="btnCenter" onclick="centerMap()">
+                        <span class="icon">🎯</span> Re-center Map
+                    </button>
+                    <button class="ctrl-btn" id="btnFitBounds" onclick="fitBounds()">
+                        <span class="icon">⬛</span> Fit to Bounds
+                    </button>
+                    <button class="ctrl-btn active" id="btnSimulate" onclick="toggleSimulation()">
+                        <span class="icon" id="simIcon">🚚</span> <span id="simLabel">Simulate Delivery</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Info Box -->
+            <div class="info-box">
+                <strong>⚡ A* Algorithm</strong> computes the shortest path using <strong>Haversine heuristic</strong>.
+                Route accounts for a <strong>road factor</strong> (~25% overhead) and estimates travel at <strong>30 km/h</strong> average city speed.
+            </div>
+
+        </aside>
+
+        <!-- ── Map Area ── -->
+        <div class="map-wrap">
+            <!-- Loading overlay -->
+            <div class="map-overlay" id="mapOverlay">
+                <div class="loader-ring"></div>
+                <div class="loader-text">Loading route data...</div>
+            </div>
+
+            <!-- The actual map -->
+            <div id="map"></div>
+
+            <!-- Legend -->
+            <div class="map-legend">
+                <div class="legend-title">Map Legend</div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background:#3b82f6;box-shadow:0 0 6px #3b82f6"></div>
+                    Hotel (Origin)
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background:#22c55e;box-shadow:0 0 6px #22c55e"></div>
+                    NGO (Destination)
+                </div>
+                <div class="legend-item">
+                    <div class="legend-line" style="background:linear-gradient(to right,#6366f1,#22c55e)"></div>
+                    A* Shortest Path
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background:#f59e0b;width:8px;height:8px;border-radius:2px"></div>
+                    Waypoints
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+    const API = 'http://localhost:3000';
+
+    // ── Parse delivery ID from URL ──
+    const params = new URLSearchParams(window.location.search);
+    const deliveryId = params.get('deliveryId') || params.get('delivery_id');
+
+    if (!deliveryId) {
+        document.getElementById('mapOverlay').innerHTML = `
+            <div class="error-state">
+                <div class="error-icon">⚠️</div>
+                <div class="error-msg">No Delivery ID provided</div>
+                <div class="error-sub">Please navigate from the Deliveries page.</div>
+                <br>
+                <a href="deliveryStatus.html" style="color:var(--primary);text-decoration:none">← Back to Deliveries</a>
+            </div>`;
+    }
+
+    document.getElementById('badgeId').textContent = `DLV-${deliveryId || '?'}`;
+
+    // ── Map & State ──
+    let map, routePolyline, animPolyline, hotelMarker, ngoMarker, waypointMarkers = [];
+    let deliverySim = null;
+    let simRunning = false;
+    let routeData = null;
+    let animationFrame = null;
+
+    // ── Custom Marker Icons ──
+    function createIcon(emoji, color) {
+        return L.divIcon({
+            className: '',
+            html: `
+                <div style="position:relative;width:40px;height:40px">
+                    <div style="
+                        background:${color};
+                        width:40px;height:40px;
+                        border-radius:50% 50% 50% 0;
+                        transform:rotate(-45deg);
+                        box-shadow:0 4px 16px rgba(0,0,0,0.4), 0 0 20px ${color}88;
+                        border:2px solid rgba(255,255,255,0.3);
+                        display:flex;align-items:center;justify-content:center;
+                    "></div>
+                    <div style="
+                        position:absolute;top:50%;left:50%;
+                        transform:translate(-50%,-65%);
+                        font-size:16px;line-height:1;
+                    ">${emoji}</div>
+                </div>`,
+            iconSize: [40, 40],
+            iconAnchor: [20, 40],
+            popupAnchor: [0, -44]
+        });
+    }
+
+    function createWaypointIcon(index, total) {
+        const pct = index / total;
+        const r = Math.round(99 + (34 - 99) * pct);
+        const g = Math.round(102 + (197 - 102) * pct);
+        const b = Math.round(241 + (94 - 241) * pct);
+        return L.circleMarker([0, 0], {
+            radius: 4,
+            fillColor: `rgb(${r},${g},${b})`,
+            color: 'rgba(255,255,255,0.3)',
+            weight: 1,
+            fillOpacity: 0.85,
+            opacity: 1
+        });
+    }
+
+    // ── Initialize Map ──
+    function initMap() {
+        map = L.map('map', {
+            center: [28.6, 77.22],
+            zoom: 13,
+            zoomControl: true
+        });
+
+        // OpenStreetMap tiles (no API key needed)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 19
+        }).addTo(map);
+    }
+
+    // ── Animate Route Drawing ──
+    function animateRoute(path) {
+        if (!path || path.length < 2) return;
+
+        // Clear existing
+        if (animPolyline) map.removeLayer(animPolyline);
+        waypointMarkers.forEach(m => map.removeLayer(m));
+        waypointMarkers = [];
+
+        const latlngs = path.map(p => [p.lat, p.lon]);
+        const total = latlngs.length;
+        let current = 0;
+        const drawn = [];
+
+        // Update progress UI
+        function updateProgress(pct) {
+            document.getElementById('progressFill').style.width = pct + '%';
+            document.getElementById('progressPct').textContent = Math.round(pct) + '%';
+        }
+
+        // Animated line
+        animPolyline = L.polyline([], {
+            color: '#6366f1',
+            weight: 5,
+            opacity: 0.85,
+            lineCap: 'round',
+            lineJoin: 'round'
+        }).addTo(map);
+
+        // Draw line with gradient effect
+        function drawNext() {
+            if (current >= total) {
+                // Final state: show full colored polyline
+                if (animPolyline) map.removeLayer(animPolyline);
+                routePolyline = L.polyline(latlngs, {
+                    color: 'url(#routeGradient)',
+                    weight: 5,
+                    opacity: 0.9,
+                    lineCap: 'round'
+                }).addTo(map);
+
+                // Actually use a solid color since SVG gradients are complex in Leaflet
+                if (routePolyline) map.removeLayer(routePolyline);
+                routePolyline = L.polyline(latlngs, {
+                    color: '#6366f1',
+                    weight: 5,
+                    opacity: 0.9,
+                    lineCap: 'round'
+                }).addTo(map);
+
+                updateProgress(100);
+                return;
+            }
+
+            drawn.push(latlngs[current]);
+            animPolyline.setLatLngs(drawn);
+
+            // Add small waypoint dot every few points
+            if (current > 0 && current < total - 1 && current % 2 === 0) {
+                const dot = L.circleMarker(latlngs[current], {
+                    radius: 3,
+                    fillColor: '#a5b4fc',
+                    color: 'rgba(255,255,255,0.2)',
+                    weight: 1,
+                    fillOpacity: 0.7
+                }).addTo(map);
+                waypointMarkers.push(dot);
+            }
+
+            const pct = (current / (total - 1)) * 100;
+            updateProgress(pct);
+
+            current++;
+            // Speed: faster for longer routes
+            const delay = Math.max(20, Math.min(80, 1500 / total));
+            animationFrame = setTimeout(drawNext, delay);
+        }
+
+        drawNext();
+    }
+
+    // ── Build waypoint list in sidebar ──
+    function buildWaypointList(path) {
+        const track = document.getElementById('waypointTrack');
+        const total = path.length;
+        document.getElementById('wpCount').textContent = total;
+
+        track.innerHTML = path.map((wp, i) => {
+            let tag, cls = '';
+            if (i === 0) { tag = '🏨 Hotel — Start'; cls = 'start'; }
+            else if (i === total - 1) { tag = '🤝 NGO — Destination'; cls = 'end'; }
+            else { tag = `📍 Waypoint ${i}`; }
+
+            return `<div class="wp-item ${cls}" style="animation-delay:${i * 0.03}s">
+                <span class="wp-tag">${tag}</span>
+                <span>${wp.lat.toFixed(5)}°N, ${wp.lon.toFixed(5)}°E</span>
+            </div>`;
+        }).join('');
+    }
+
+    // ── Load route data and render map ──
+    async function loadRoute() {
+        if (!deliveryId) return;
+
+        try {
+            const res = await fetch(`${API}/getRoute/${deliveryId}`);
+            const data = await res.json();
+
+            if (!data.success) throw new Error(data.error || 'Route not found');
+
+            routeData = data;
+            const { hotel, ngo, path, distance, estimated_time } = data;
+
+            // Update stats
+            document.getElementById('statDist').textContent = distance ? distance + ' km' : '—';
+            document.getElementById('statTime').textContent = estimated_time ? estimated_time + ' min' : '—';
+            document.getElementById('statNodes').textContent = path.length;
+
+            // Update coords display
+            document.getElementById('hotelCoords').textContent =
+                hotel ? `${hotel.lat.toFixed(5)}°N, ${hotel.lon.toFixed(5)}°E` : 'N/A';
+            document.getElementById('ngoCoords').textContent =
+                ngo ? `${ngo.lat.toFixed(5)}°N, ${ngo.lon.toFixed(5)}°E` : 'N/A';
+
+            // Build waypoint sidebar
+            buildWaypointList(path);
+
+            // Place Hotel marker
+            if (hotel) {
+                hotelMarker = L.marker([hotel.lat, hotel.lon], {
+                    icon: createIcon('🏨', '#3b82f6')
+                }).addTo(map);
+
+                hotelMarker.bindPopup(`
+                    <div class="popup-inner">
+                        <div class="popup-title">🏨 Hotel (Origin)</div>
+                        <div class="popup-row"><strong>Coordinates:</strong> ${hotel.lat.toFixed(5)}, ${hotel.lon.toFixed(5)}</div>
+                        <div class="popup-row"><strong>Role:</strong> Food Donor</div>
+                        <div class="popup-row" style="margin-top:0.4rem;color:#3b82f6">📦 Delivery starts here</div>
+                    </div>`);
+            }
+
+            // Place NGO marker
+            if (ngo) {
+                ngoMarker = L.marker([ngo.lat, ngo.lon], {
+                    icon: createIcon('🤝', '#22c55e')
+                }).addTo(map);
+
+                ngoMarker.bindPopup(`
+                    <div class="popup-inner">
+                        <div class="popup-title">🤝 NGO (Destination)</div>
+                        <div class="popup-row"><strong>Coordinates:</strong> ${ngo.lat.toFixed(5)}, ${ngo.lon.toFixed(5)}</div>
+                        <div class="popup-row"><strong>Role:</strong> Food Recipient</div>
+                        <div class="popup-row" style="margin-top:0.4rem;color:#22c55e">✅ Delivery ends here</div>
+                    </div>`);
+            }
+
+            // Fit map to show both markers + path
+            if (hotel && ngo) {
+                const bounds = L.latLngBounds(
+                    [hotel.lat, hotel.lon],
+                    [ngo.lat, ngo.lon]
+                );
+                // Expand bounds to include all path points
+                path.forEach(p => bounds.extend([p.lat, p.lon]));
+                map.fitBounds(bounds, { padding: [60, 60] });
+            }
+
+            // Hide loading overlay
+            document.getElementById('mapOverlay').classList.add('hidden');
+
+            // Animate route drawing
+            setTimeout(() => animateRoute(path), 400);
+
+        } catch (err) {
+            console.error('Route load error:', err);
+            document.getElementById('mapOverlay').innerHTML = `
+                <div class="error-state">
+                    <div class="error-icon">❌</div>
+                    <div class="error-msg">Failed to load route</div>
+                    <div class="error-sub">${err.message}</div>
+                    <br>
+                    <a href="deliveryStatus.html" style="color:var(--primary);text-decoration:none">← Back to Deliveries</a>
+                </div>`;
+        }
+    }
+
+    // ── Map Controls ──
+    function replayAnimation() {
+        if (!routeData) return;
+        // Clear previous drawings
+        if (animPolyline) map.removeLayer(animPolyline);
+        if (routePolyline) map.removeLayer(routePolyline);
+        waypointMarkers.forEach(m => map.removeLayer(m));
+        waypointMarkers = [];
+        if (animationFrame) clearTimeout(animationFrame);
+
+        document.getElementById('progressFill').style.width = '0%';
+        document.getElementById('progressPct').textContent = '0%';
+
+        setTimeout(() => animateRoute(routeData.path), 100);
+    }
+
+    function centerMap() {
+        if (!routeData) return;
+        const { hotel, ngo } = routeData;
+        if (hotel && ngo) {
+            const midLat = (hotel.lat + ngo.lat) / 2;
+            const midLon = (hotel.lon + ngo.lon) / 2;
+            map.setView([midLat, midLon], 14, { animate: true });
+        }
+    }
+
+    function fitBounds() {
+        if (!routeData) return;
+        const { hotel, ngo, path } = routeData;
+        const bounds = L.latLngBounds([[hotel.lat, hotel.lon], [ngo.lat, ngo.lon]]);
+        path.forEach(p => bounds.extend([p.lat, p.lon]));
+        map.fitBounds(bounds, { padding: [60, 60], animate: true });
+    }
+
+    // ── Delivery Simulation ──
+    let simMarker = null;
+    let simIndex = 0;
+
+    function toggleSimulation() {
+        if (simRunning) {
+            stopSimulation();
+        } else {
+            startSimulation();
+        }
+    }
+
+    function startSimulation() {
+        if (!routeData || !routeData.path || routeData.path.length < 2) return;
+        simRunning = true;
+        simIndex = 0;
+        document.getElementById('simIcon').textContent = '⏹️';
+        document.getElementById('simLabel').textContent = 'Stop Simulation';
+        document.getElementById('btnSimulate').classList.add('active');
+
+        const path = routeData.path;
+        const simIcon = L.divIcon({
+            className: '',
+            html: `<div style="
+                font-size:22px;
+                filter:drop-shadow(0 2px 6px rgba(0,0,0,0.6));
+                animation:bounce 0.5s infinite alternate;
+            ">🚚</div>
+            <style>@keyframes bounce{to{transform:translateY(-4px)}}</style>`,
+            iconSize: [28, 28],
+            iconAnchor: [14, 14]
+        });
+
+        if (simMarker) map.removeLayer(simMarker);
+        simMarker = L.marker([path[0].lat, path[0].lon], { icon: simIcon }).addTo(map);
+
+        function stepSim() {
+            if (!simRunning || simIndex >= path.length - 1) {
+                stopSimulation();
+                return;
+            }
+            simIndex++;
+            const pt = path[simIndex];
+            simMarker.setLatLng([pt.lat, pt.lon]);
+
+            // Pan map to follow truck (gently)
+            if (simIndex % 3 === 0) {
+                map.panTo([pt.lat, pt.lon], { animate: true, duration: 0.3 });
+            }
+
+            deliverySim = setTimeout(stepSim, 300);
+        }
+
+        stepSim();
+    }
+
+    function stopSimulation() {
+        simRunning = false;
+        if (deliverySim) clearTimeout(deliverySim);
+        if (simMarker) { map.removeLayer(simMarker); simMarker = null; }
+        document.getElementById('simIcon').textContent = '🚚';
+        document.getElementById('simLabel').textContent = 'Simulate Delivery';
+        document.getElementById('btnSimulate').classList.remove('active');
+    }
+
+    // ── Boot ──
+    initMap();
+    loadRoute();
+    </script>
+
+    <!-- AI Chatbot Widget -->
+    <script src="chatbot.js"></script>
+</body>
+</html>

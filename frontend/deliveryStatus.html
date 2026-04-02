@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Delivery Status — SustainAI</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* ── Route Visualization Panel ── */
+        .route-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(6px);
+            z-index: 9000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        .route-modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .route-modal {
+            background: var(--card);
+            border: 1px solid rgba(99, 102, 241, 0.25);
+            border-radius: 16px;
+            width: 560px;
+            max-width: 92vw;
+            max-height: 80vh;
+            overflow-y: auto;
+            padding: 2rem;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(99, 102, 241, 0.1);
+            transform: scale(0.9) translateY(20px);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .route-modal-overlay.active .route-modal {
+            transform: scale(1) translateY(0);
+        }
+        .route-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .route-modal-header h2 {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--text);
+        }
+        .route-modal-close {
+            background: rgba(255,255,255,0.06);
+            border: none;
+            color: #94a3b8;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .route-modal-close:hover {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+
+        /* Route Stats Grid */
+        .route-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .route-stat-card {
+            background: rgba(99, 102, 241, 0.08);
+            border: 1px solid rgba(99, 102, 241, 0.15);
+            border-radius: 12px;
+            padding: 1rem 1.2rem;
+            text-align: center;
+        }
+        .route-stat-card .val {
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: var(--primary);
+        }
+        .route-stat-card.green .val { color: var(--green); }
+        .route-stat-card .lbl {
+            font-size: 0.75rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 0.3rem;
+        }
+
+        /* Route Path Visualization */
+        .route-path-visual {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.2rem;
+        }
+        .route-path-visual h4 {
+            font-size: 0.85rem;
+            color: var(--muted);
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .waypoint-list {
+            position: relative;
+            padding-left: 28px;
+        }
+        .waypoint-list::before {
+            content: '';
+            position: absolute;
+            left: 8px;
+            top: 12px;
+            bottom: 12px;
+            width: 2px;
+            background: linear-gradient(to bottom, var(--primary), var(--green));
+            border-radius: 2px;
+        }
+        .waypoint {
+            position: relative;
+            padding: 0.5rem 0 0.5rem 1rem;
+            font-size: 0.82rem;
+            color: #94a3b8;
+            font-family: 'Inter', monospace;
+        }
+        .waypoint::before {
+            content: '';
+            position: absolute;
+            left: -24px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--card);
+            border: 2px solid var(--primary);
+        }
+        .waypoint:first-child::before {
+            background: var(--primary);
+            box-shadow: 0 0 8px rgba(99, 102, 241, 0.5);
+        }
+        .waypoint:last-child::before {
+            background: var(--green);
+            border-color: var(--green);
+            box-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
+        }
+        .waypoint .wp-label {
+            font-weight: 700;
+            color: var(--text);
+            font-size: 0.85rem;
+        }
+
+        /* Route Action Button */
+        .btn-route {
+            background: rgba(99, 102, 241, 0.12);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            color: #a5b4fc;
+            padding: 0.4rem 0.9rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.78rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            font-family: 'Inter', sans-serif;
+        }
+        .btn-route:hover {
+            background: rgba(99, 102, 241, 0.25);
+            border-color: rgba(99, 102, 241, 0.5);
+            color: #c7d2fe;
+            transform: translateY(-1px);
+        }
+        .btn-route:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Live Map button */
+        .btn-map {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: #86efac;
+            padding: 0.4rem 0.9rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.78rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            font-family: 'Inter', sans-serif;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            margin-left: 0.4rem;
+        }
+        .btn-map:hover {
+            background: rgba(34, 197, 94, 0.22);
+            border-color: rgba(34, 197, 94, 0.5);
+            color: #bbf7d0;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.15);
+        }
+
+        /* Distance badge in table */
+        .dist-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            color: var(--green);
+            padding: 0.25rem 0.6rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .time-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            color: var(--cyan);
+            padding: 0.25rem 0.6rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 0.4rem;
+        }
+    </style>
+</head>
+<body>
+<div class="layout">
+    <div class="sidebar">
+        <div class="brand"><span>🚚</span> Deliveries</div>
+        <a href="#" id="dashLink"><span class="icon">📊</span> Dashboard</a>
+        <a href="inventory.html"><span class="icon">📦</span> Inventory</a>
+        <a href="requests.html"><span class="icon">📥</span> Requests</a>
+        <a href="deliveryStatus.html" class="active"><span class="icon">🚚</span> Deliveries</a>
+        <a href="roleSelect.html" style="margin-top:auto;color:var(--red)"><span class="icon">🚪</span> Sign Out</a>
+    </div>
+    <div class="main">
+        <div class="topbar">
+            <h1>🚚 Delivery Management</h1>
+            <div class="badge" id="uname"></div>
+        </div>
+
+        <!-- Summary Stats -->
+        <div class="grid grid-4" id="dlv-stats"></div>
+
+        <!-- Deliveries Table -->
+        <div class="tbl-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Food Item</th>
+                        <th>NGO</th>
+                        <th>Route Info</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="delivTable"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Route Visualization Modal -->
+<div class="route-modal-overlay" id="routeOverlay">
+    <div class="route-modal">
+        <div class="route-modal-header">
+            <h2 id="routeTitle">🗺️ A* Route Details</h2>
+            <button class="route-modal-close" onclick="closeRouteModal()">✕</button>
+        </div>
+        <div id="routeContent"></div>
+    </div>
+</div>
+
+<script>
+const API = 'http://localhost:3000';
+const u = JSON.parse(localStorage.getItem('v4_user'));
+if (!u) location.href = 'roleSelect.html';
+document.getElementById('uname').innerText = u.name;
+document.getElementById('dashLink').href =
+    u.role === 'Admin' ? 'adminDashboard.html' :
+    u.role === 'Hotel' ? 'hotelDashboard.html' : 'ngoDashboard.html';
+
+let allDeliveries = [];
+
+async function loadDeliveries() {
+    try {
+        const res = await (await fetch(`${API}/getDeliveries`)).json();
+        if (!res.success) return;
+
+        allDeliveries = res.deliveries;
+        const total = allDeliveries.length;
+        const pending = allDeliveries.filter(d => d.status === 'Pending').length;
+        const transit = allDeliveries.filter(d => d.status === 'InTransit').length;
+        const delivered = allDeliveries.filter(d => d.status === 'Delivered').length;
+
+        // Summary stats
+        document.getElementById('dlv-stats').innerHTML = `
+            <div class="card stat purple"><div class="num">${total}</div><div class="label">Total</div></div>
+            <div class="card stat yellow"><div class="num">${pending}</div><div class="label">Pending</div></div>
+            <div class="card stat cyan"><div class="num">${transit}</div><div class="label">In Transit</div></div>
+            <div class="card stat green"><div class="num">${delivered}</div><div class="label">Delivered</div></div>
+        `;
+
+        // Table rows
+        const tb = document.getElementById('delivTable');
+        if (total === 0) {
+            tb.innerHTML = '<tr><td colspan="6" style="color:var(--muted);text-align:center;padding:2rem">No deliveries yet.</td></tr>';
+            return;
+        }
+
+        tb.innerHTML = allDeliveries.map(d => {
+            const stCls = d.status === 'Delivered' ? 'tag-fresh' : d.status === 'InTransit' ? 'tag-soon' : 'tag-critical';
+            const routeInfo = d.distance
+                ? `<span class="dist-badge">📏 ${d.distance} km</span><span class="time-badge">⏱ ${d.estimated_time} min</span>`
+                : '<span style="color:var(--muted);font-size:0.8rem">No route</span>';
+            const routeBtn = d.route_path && d.route_path.length > 0
+                ? `<button class="btn-route" onclick="showRoute(${d.id})">🗺️ View Route</button>
+                   <a class="btn-map" href="routeMap.html?deliveryId=${d.id}" title="Open live Leaflet map">🌍 Live Map</a>`
+                : `<button class="btn-route" disabled>No Route</button>`;
+
+            const statusSelect = u.role === 'Hotel' || u.role === 'Admin'
+                ? `<select onchange="updateStatus(${d.id}, this.value)"
+                     style="background:var(--bg);padding:0.4rem 0.6rem;color:white;border:1px solid var(--border);border-radius:6px;font-size:0.8rem;cursor:pointer">
+                    <option value="Pending" ${d.status==='Pending'?'selected':''}>⏳ Pending</option>
+                    <option value="InTransit" ${d.status==='InTransit'?'selected':''}>🚚 In Transit</option>
+                    <option value="Delivered" ${d.status==='Delivered'?'selected':''}>✅ Delivered</option>
+                  </select>`
+                : `<span class="tag ${stCls}">${d.status}</span>`;
+
+            return `<tr>
+                <td><strong>DLV-${d.id}</strong></td>
+                <td>${d.item_name}</td>
+                <td>${d.ngo_name}</td>
+                <td>${routeInfo}</td>
+                <td>${statusSelect}</td>
+                <td>${routeBtn}</td>
+            </tr>`;
+        }).join('');
+
+    } catch (err) {
+        console.error('Failed to load deliveries:', err);
+    }
+}
+
+async function updateStatus(dlvId, stat) {
+    try {
+        const res = await (await fetch(`${API}/updateStatus`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ delivery_id: dlvId, status: stat })
+        })).json();
+        if (res.success) loadDeliveries();
+        else alert('Update failed.');
+    } catch (err) {
+        alert('Network error.');
+    }
+}
+
+/**
+ * Show A* Route Visualization Modal
+ * Renders the optimized path waypoints with distance/time stats
+ */
+function showRoute(deliveryId) {
+    const d = allDeliveries.find(x => x.id === deliveryId);
+    if (!d) return;
+
+    const path = d.route_path || [];
+    document.getElementById('routeTitle').textContent = `🗺️ A* Route — DLV-${d.id}`;
+
+    let html = `
+        <div class="route-stats">
+            <div class="route-stat-card">
+                <div class="val">${d.distance || '—'} km</div>
+                <div class="lbl">Total Distance</div>
+            </div>
+            <div class="route-stat-card green">
+                <div class="val">${d.estimated_time || '—'} min</div>
+                <div class="lbl">Est. Travel Time</div>
+            </div>
+        </div>
+
+        <div class="route-path-visual">
+            <h4>🧭 Optimized Waypoints (${path.length} nodes)</h4>
+            <div class="waypoint-list">
+    `;
+
+    path.forEach((wp, i) => {
+        let label = '';
+        if (i === 0) label = '<span class="wp-label">🏨 Hotel (Start)</span><br>';
+        else if (i === path.length - 1) label = '<span class="wp-label">🤝 NGO (Destination)</span><br>';
+        else label = `<span class="wp-label">📍 Waypoint ${i}</span><br>`;
+
+        html += `<div class="waypoint">${label}Lat: ${wp.lat}, Lon: ${wp.lon}</div>`;
+    });
+
+    html += `
+            </div>
+        </div>
+        <div style="margin-top:1rem;padding:0.8rem 1rem;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.15);border-radius:8px;font-size:0.82rem;color:#86efac">
+            ✅ Route computed using <strong>A* Algorithm</strong> with Haversine heuristic &mdash; avg city speed 30 km/h
+        </div>
+    `;
+
+    document.getElementById('routeContent').innerHTML = html;
+    document.getElementById('routeOverlay').classList.add('active');
+}
+
+function closeRouteModal() {
+    document.getElementById('routeOverlay').classList.remove('active');
+}
+
+// Close modal on overlay click
+document.getElementById('routeOverlay').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeRouteModal();
+});
+
+// Close modal on Escape key
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeRouteModal();
+});
+
+loadDeliveries();
+</script>
+<!-- AI Chatbot Widget -->
+<script src="chatbot.js"></script>
+</body>
+</html>

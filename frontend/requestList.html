@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Requests List</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="dashboard-wrapper">
+        <div class="sidebar">
+            <h2 style="color:var(--primary)">🏢 Provider Node</h2>
+            <a href="hotelDashboard.html">Dashboard Home</a>
+            <a href="addFood.html">Add Surplus Food</a>
+            <a href="requestList.html" class="active">Review Requests</a>
+            <a href="deliveryStatus.html">Manage Deliveries</a>
+        </div>
+        
+        <div class="content">
+            <div class="topbar"><h1>Inbound NGO Requests</h1></div>
+            
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>Request ID</th><th>Requested Food</th><th>NGO Details</th><th>Approve</th><th>Reject</th></tr></thead>
+                    <tbody id="reqTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3000';
+        const user = JSON.parse(localStorage.getItem('ai_food_user'));
+        if(!user || user.role !== 'Hotel') window.location.href = 'roleSelect.html';
+
+        async function loadRequests() {
+            const res = await (await fetch(`${API_URL}/getRequests?hotel_id=${user.id}`)).json();
+            if(res.success) {
+                document.getElementById('reqTable').innerHTML = res.requests.length === 0 ? '<tr><td colspan="5">No pending requests right now.</td></tr>' : res.requests.map(r => `
+                    <tr>
+                        <td>REQ-${r.id}</td>
+                        <td style="color:var(--secondary)">${r.food_name} (Qty: ${r.qty})</td>
+                        <td>${r.ngo_name}</td>
+                        <td><button class="btn btn-success" style="padding:0.4rem 1rem" onclick="act(${r.id}, 'accept')">Accept</button></td>
+                        <td><button class="btn btn-danger" style="padding:0.4rem 1rem" onclick="act(${r.id}, 'reject')">Reject</button></td>
+                    </tr>
+                `).join('');
+            }
+        }
+
+        async function act(reqId, action) {
+            const ep = action === 'accept' ? '/acceptRequest' : '/rejectRequest';
+            const res = await (await fetch(`${API_URL}${ep}`, {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ request_id: reqId, hotel_id: user.id })
+            })).json();
+            
+            if(res.success) loadRequests();
+            else alert('Action failed.');
+        }
+
+        window.onload = loadRequests;
+    </script>
+</body>
+</html>

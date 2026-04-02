@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Confirm Request | SustainAI</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="script.js"></script>
+</head>
+<body>
+    <header>
+        <div class="logo">SustainAI <span style="font-size:1rem;color:var(--text-muted)">Logistics</span></div>
+        <nav><a href="foodList.html">Cancel</a></nav>
+    </header>
+
+    <div class="container" style="max-width: 500px; text-align:center; padding-top: 4rem;">
+        <div class="glass-card">
+            <div style="font-size: 4rem; margin-bottom: 1rem;">🚀</div>
+            <h2 style="color:var(--primary);">Confirm Logistics Match</h2>
+            <p>You are about to initiate a final request to claim this surplus food item. The driver network will be notified immediately.</p>
+            <p style="font-size:0.85rem; color:var(--text-muted);" id="refId"></p>
+            <button onclick="confirmRequest()" class="btn btn-full" style="margin-top:2rem;" id="confBtn">Confirm Dispatch</button>
+        </div>
+    </div>
+
+    <script>
+        checkAuth(['NGO']);
+        const params = new URLSearchParams(window.location.search);
+        const foodId = params.get('id');
+        document.getElementById('refId').innerText = 'Reference Token: ' + (foodId || 'UNKNOWN');
+
+        if(!foodId) {
+            alert('Invalid access.');
+            window.location.href = 'foodList.html';
+        }
+
+        async function confirmRequest() {
+            document.getElementById('confBtn').innerText = 'Routing...';
+            document.getElementById('confBtn').disabled = true;
+
+            const res = await apiCall('/requestFood', 'POST', { ngo_id: user.id, food_id: foodId });
+            if(res && res.success) {
+                alert('Request secured! Logistics module engaged.');
+                window.location.href = 'status.html';
+            } else {
+                alert('Failed. Another NGO may have claimed it.');
+                window.location.href = 'foodList.html';
+            }
+        }
+    </script>
+</body>
+</html>

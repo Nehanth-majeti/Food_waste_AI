@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Add Item</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<div class="layout">
+    <div class="sidebar">
+        <div class="brand"><span>🏨</span> Hotel Panel</div>
+        <a href="hotelDashboard.html"><span class="icon">📊</span> Dashboard</a>
+        <a href="addItem.html" class="active"><span class="icon">➕</span> Add Item</a>
+        <a href="inventory.html"><span class="icon">📦</span> Inventory</a>
+        <a href="expiring.html"><span class="icon">⏰</span> Expiring</a>
+        <a href="aiSuggestions.html"><span class="icon">🤖</span> AI Suggestions</a>
+        <a href="requests.html"><span class="icon">📥</span> Requests</a>
+        <a href="roleSelect.html" style="margin-top:auto;color:var(--red)"><span class="icon">🚪</span> Sign Out</a>
+    </div>
+    <div class="main">
+        <div class="topbar"><h1>➕ Add New Food Item</h1></div>
+        <div class="card" style="max-width:600px">
+            <form id="f">
+                <label>Item Name</label><input type="text" id="name" required placeholder="e.g. Butter Chicken Trays">
+                <label>Category</label>
+                <select id="cat" required><option>Vegetarian</option><option>Non-Veg</option><option>Bakery</option><option>Salads</option><option>Beverages</option><option>Desserts</option></select>
+                <label>Quantity</label><input type="number" id="qty" required>
+                <label>Expiry Date & Time</label><input type="datetime-local" id="exp" required>
+                <label>Upload Photo</label><input type="file" id="img" accept="image/*">
+                <button type="submit" class="btn btn-full">🚀 Analyze & Publish</button>
+                <div id="res" style="margin-top:1rem;color:var(--green);font-weight:600"></div>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+const API='http://localhost:3000',u=JSON.parse(localStorage.getItem('v4_user'));
+if(!u||u.role!=='Hotel') location.href='roleSelect.html';
+document.getElementById('f').onsubmit=async e=>{e.preventDefault();
+    const fd=new FormData();fd.append('hotel_id',u.id);fd.append('name',document.getElementById('name').value);fd.append('category',document.getElementById('cat').value);fd.append('qty',document.getElementById('qty').value);fd.append('expiry',new Date(document.getElementById('exp').value).toISOString());
+    const file=document.getElementById('img').files[0];if(file)fd.append('image',file);
+    const r=await(await fetch(API+'/addItem',{method:'POST',body:fd})).json();
+    if(r.success){let m='✅ Published! ID: '+r.itemId;if(r.expiry_info)m+=' ('+r.expiry_info.hours_left+'h remaining, '+r.expiry_info.label+')';document.getElementById('res').innerText=m;document.getElementById('f').reset()}
+    else document.getElementById('res').innerText='❌ '+(r.message||'Error')};
+</script>
+</body>
+</html>

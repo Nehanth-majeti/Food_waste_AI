@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Expiring Items</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<div class="layout">
+    <div class="sidebar">
+        <div class="brand"><span>⏰</span> Expiring</div>
+        <a href="#" id="dashLink"><span class="icon">📊</span> Dashboard</a>
+        <a href="inventory.html"><span class="icon">📦</span> All Items</a>
+        <a href="expiring.html" class="active"><span class="icon">⏰</span> Expiring</a>
+        <a href="aiSuggestions.html"><span class="icon">🤖</span> AI Suggestions</a>
+        <a href="requests.html"><span class="icon">📥</span> Requests</a>
+        <a href="roleSelect.html" style="margin-top:auto;color:var(--red)"><span class="icon">🚪</span> Sign Out</a>
+    </div>
+    <div class="main">
+        <div class="topbar"><h1>⏰ Expiring Soon</h1></div>
+        <div class="grid grid-4" style="margin-bottom:1.5rem">
+            <div class="card stat red"><div class="num" id="crit">0</div><div class="label">Critical (&lt;24h)</div></div>
+            <div class="card stat yellow"><div class="num" id="d2">0</div><div class="label">2 Days</div></div>
+            <div class="card stat cyan"><div class="num" id="d3">0</div><div class="label">3 Days</div></div>
+        </div>
+        <div class="tbl-wrap"><table><thead><tr><th>Item</th><th>Hotel</th><th>Hours Left</th><th>Status</th></tr></thead><tbody id="tb"></tbody></table></div>
+    </div>
+</div>
+<script>
+const API='http://localhost:3000',u=JSON.parse(localStorage.getItem('v4_user'));
+if(!u) location.href='roleSelect.html';
+document.getElementById('dashLink').href=u.role==='Admin'?'adminDashboard.html':u.role==='Hotel'?'hotelDashboard.html':'ngoDashboard.html';
+(async()=>{
+    const r=await(await fetch(API+'/getExpiring')).json();
+    if(r.success){
+        let c=0,d2=0,d3=0;
+        r.items.forEach(i=>{if(i.label==='Critical')c++;else if(i.label==='2 Days')d2++;else d3++});
+        document.getElementById('crit').innerText=c;document.getElementById('d2').innerText=d2;document.getElementById('d3').innerText=d3;
+        document.getElementById('tb').innerHTML=r.items.map(i=>{
+            const cls=i.label==='Critical'?'tag-critical':i.label==='2 Days'?'tag-soon':'tag-fresh';
+            return`<tr><td><strong>${i.name}</strong><br><span style="color:var(--muted);font-size:.8rem">${i.category}</span></td><td>${i.hotel_name}</td><td>${i.hours_left}h</td><td><span class="tag ${cls}">${i.label}</span></td></tr>`
+        }).join('');
+    }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Post Food</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="dashboard-wrapper">
+        <div class="sidebar">
+            <h2 style="color:var(--primary)">🏢 Provider Node</h2>
+            <a href="hotelDashboard.html">Dashboard Home</a>
+            <a href="addFood.html" class="active">Add Surplus Food</a>
+            <a href="requestList.html">Review Requests</a>
+            <a href="deliveryStatus.html">Manage Deliveries</a>
+        </div>
+        
+        <div class="content">
+            <div class="topbar"><h1>Publish Surplus Inventory</h1></div>
+            
+            <div class="card" style="max-width: 600px;">
+                <form id="addFoodForm">
+                    <label>Item Name</label>
+                    <input type="text" id="name" required placeholder="e.g. Mixed Banquet Trays">
+                    
+                    <label>Quantity (Kg/Servings)</label>
+                    <input type="number" id="qty" required>
+                    
+                    <label>Expiration Cutoff</label>
+                    <input type="datetime-local" id="expiry" required>
+                    
+                    <label>Pickup Location (Dock / Reception)</label>
+                    <input type="text" id="location" required>
+                    
+                    <label>Upload Verification Photo</label>
+                    <input type="file" id="image" accept="image/*">
+                    
+                    <button type="submit" class="btn btn-full">Run Analysis & Post</button>
+                    <div id="resultBox" style="margin-top:1rem; color:var(--secondary); font-weight:600"></div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3000';
+        const user = JSON.parse(localStorage.getItem('ai_food_user'));
+        if(!user || user.role !== 'Hotel') window.location.href = 'roleSelect.html';
+
+        document.getElementById('addFoodForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fd = new FormData();
+            fd.append('hotel_id', user.id);
+            fd.append('name', document.getElementById('name').value);
+            fd.append('qty', document.getElementById('qty').value);
+            fd.append('expiry', new Date(document.getElementById('expiry').value).toISOString());
+            fd.append('location', document.getElementById('location').value);
+            const file = document.getElementById('image').files[0];
+            if(file) fd.append('image', file);
+
+            try {
+                const res = await (await fetch(`${API_URL}/addFood`, { method: 'POST', body: fd })).json();
+                if(res.success) {
+                    let msg = 'Listing published successfully!';
+                    if(res.ai_analysis && res.ai_analysis.expiry_info) {
+                        msg += ` AI verified: ${res.ai_analysis.expiry_info.hours_left} safe hours remaining.`;
+                    }
+                    document.getElementById('resultBox').innerText = msg;
+                    document.getElementById('addFoodForm').reset();
+                } else alert('Error: ' + (res.message || 'Validation failed'));
+            } catch(e) { alert("Backend unreachable."); }
+        });
+    </script>
+</body>
+</html>

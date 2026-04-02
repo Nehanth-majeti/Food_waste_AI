@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Login</title><link rel="stylesheet" href="style.css"></head>
+<body style="display:flex;justify-content:center;align-items:center;min-height:100vh">
+    <div class="card" style="width:100%;max-width:420px">
+        <h2 style="text-align:center;margin-bottom:.3rem">Sign In</h2>
+        <p style="text-align:center;color:var(--muted);margin-bottom:2rem">Accessing <strong id="rl" style="color:var(--primary)"></strong> portal</p>
+        <form id="f">
+            <label>Email</label><input type="email" id="email" required>
+            <label>Password</label><input type="password" id="pw" required>
+            <button type="submit" class="btn btn-full">Login →</button>
+        </form>
+        <p style="text-align:center;margin-top:1.2rem;font-size:.9rem"><a href="register.html" style="color:var(--primary)">Create account</a> · <a href="roleSelect.html" style="color:var(--muted)">Change role</a></p>
+    </div>
+    <script>
+        const API='http://localhost:3000',role=localStorage.getItem('v4_role')||'Hotel';
+        document.getElementById('rl').innerText=role;
+        document.getElementById('f').onsubmit=async e=>{e.preventDefault();
+            const r=await(await fetch(API+'/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:document.getElementById('email').value,password:document.getElementById('pw').value,role})})).json();
+            if(r.success){localStorage.setItem('v4_user',JSON.stringify(r.user));location.href=role==='Admin'?'adminDashboard.html':role==='Hotel'?'hotelDashboard.html':'ngoDashboard.html'}else alert(r.message||'Login failed')};
+    </script>
+</body>
+</html>

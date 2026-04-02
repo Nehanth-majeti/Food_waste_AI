@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Tracker | SustainAI</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="script.js"></script>
+</head>
+<body>
+    <header>
+        <div class="logo">SustainAI <span style="font-size:1rem;color:var(--text-muted)">Tracking</span></div>
+        <nav>
+            <a href="home.html">Home</a>
+            <a href="#" onclick="logout()">Logout</a>
+        </nav>
+    </header>
+    <div class="container" style="max-width: 600px;">
+        <h2>Live Logistics</h2>
+        <div class="glass-card">
+            <p style="margin-bottom: 2rem;">
+                Authorized entities can update the supply chain telemetry data in real time here.
+            </p>
+            <div class="form-group">
+                <label>System Food ID</label>
+                <input type="number" id="foodId" placeholder="ex: 1045">
+            </div>
+            <div class="form-group">
+                <label>Dispatch Milestone</label>
+                <select id="statusSelect">
+                    <option value="Assigned">Assigned / Driver Found</option>
+                    <option value="PickedUp">Acquired / Transit Phase</option>
+                    <option value="Delivered">Delivered Successfully (Closed)</option>
+                </select>
+            </div>
+            
+            <button onclick="update()" class="btn btn-full" style="margin-top: 1rem;">Push Milestone</button>
+        </div>
+    </div>
+    <script>
+        checkAuth(['Hotel', 'NGO', 'Admin']);
+        
+        async function update() {
+            const foodId = document.getElementById('foodId').value;
+            const status = document.getElementById('statusSelect').value;
+            if(!foodId) return alert('Enter an Asset ID.');
+            
+            const res = await apiCall('/updateStatus', 'POST', { food_id: foodId, status: status });
+            if(res && res.success) {
+                alert(`System updated. Milestone '${status}' logged.`);
+                document.getElementById('foodId').value = '';
+            } else {
+                alert('Connection failure or Invalid ID.');
+            }
+        }
+    </script>
+</body>
+</html>

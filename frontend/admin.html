@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin System - SustainAI</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="script.js"></script>
+</head>
+<body>
+    <header>
+        <div class="logo">SustainAI <span style="font-size:1rem;color:var(--text-muted)">Admin Core</span></div>
+        <nav>
+            <a href="home.html">Home</a>
+            <a href="#" onclick="logout()">Logout</a>
+        </nav>
+    </header>
+    <div class="container">
+        <h2>Network Overview</h2>
+        
+        <div class="metrics">
+            <div class="metric-box">
+                <h3 id="m1">94%</h3>
+                <p>Waste Salvaged</p>
+            </div>
+            <div class="metric-box">
+                <h3 id="m2">1,204</h3>
+                <p>Tons Redirected</p>
+            </div>
+            <div class="metric-box">
+                <h3 id="m3">42</h3>
+                <p>Global Nodes Active</p>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="glass-card">
+                <h3>🧠 ML Waste Prediction Network</h3>
+                <p>Run the Python simulation on aggregate historical endpoints.</p>
+                <button onclick="runPrediction()" class="btn btn-full" style="margin-bottom:1rem;">Engage Deep Learning</button>
+                <div id="aiOutput" style="font-family: monospace; color: var(--primary); background:rgba(0,0,0,0.3); padding:1rem; border-radius:8px; min-height:80px;">Standby...</div>
+            </div>
+            <div class="glass-card">
+                <h3>🛰️ Geolocation Dispatch</h3>
+                <p>Validate NGO proximity algorithms via vector distance evaluation.</p>
+                <button onclick="runNearestNGO()" class="btn btn-outline btn-full" style="margin-bottom:1rem;">Test Geo-Locator</button>
+                <div id="routeOutput" style="color: var(--primary); background:rgba(0,0,0,0.3); padding:1rem; border-radius:8px; min-height:80px;">Standby...</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        checkAuth(['Admin']);
+        
+        async function runPrediction() {
+            document.getElementById('aiOutput').innerText = 'Awaiting Python Thread...';
+            // Simulated Admin Load
+            const payload = {
+                historical_data: [{ waste_kg: 50 }, { waste_kg: 42 }, { waste_kg: 65 }]
+            };
+            const res = await apiCall('/predict', 'POST', payload);
+            if(res && res.success) {
+                document.getElementById('aiOutput').innerHTML = `<strong>Result:</strong> ${res.prediction.predicted_waste} kg metric prediction mapped successfully over network graph.`;
+            } else {
+                document.getElementById('aiOutput').innerText = 'Kernel panic. Check server logs.';
+            }
+        }
+        
+        async function runNearestNGO() {
+            document.getElementById('routeOutput').innerText = 'Awaiting Python Thread...';
+            // Simulated lat lon query
+            const res = await apiCall('/findNearest', 'POST', { hotel_lat: 40.7128, hotel_lon: -74.0060 });
+            if(res && res.success) {
+                if(res.nearest) {
+                    document.getElementById('routeOutput').innerHTML = `<strong>Closest Active Node:</strong> ${res.nearest.name} (Dist: ${res.nearest.distance} km)`;
+                } else {
+                    document.getElementById('routeOutput').innerText = `No available receivers.`;
+                }
+            }
+        }
+    </script>
+</body>
+</html>

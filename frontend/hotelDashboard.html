@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Hotel Dashboard</title><link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script></head>
+<body>
+<div class="layout">
+    <div class="sidebar">
+        <div class="brand"><span>🏨</span> Hotel Panel</div>
+        <a href="hotelDashboard.html" class="active"><span class="icon">📊</span> Dashboard</a>
+        <a href="addItem.html"><span class="icon">➕</span> Add Item</a>
+        <a href="inventory.html"><span class="icon">📦</span> Inventory</a>
+        <a href="expiring.html"><span class="icon">⏰</span> Expiring</a>
+        <a href="aiSuggestions.html"><span class="icon">🤖</span> AI Suggestions</a>
+        <a href="requests.html"><span class="icon">📥</span> Requests</a>
+        <a href="deliveryStatus.html"><span class="icon">🚚</span> Deliveries</a>
+        <a href="analytics.html"><span class="icon">📈</span> Analytics</a>
+        <a href="roleSelect.html" style="margin-top:auto;color:var(--red)"><span class="icon">🚪</span> Sign Out</a>
+    </div>
+    <div class="main">
+        <div class="topbar"><h1>Provider Dashboard</h1><div class="badge" id="uname"></div></div>
+        <div class="grid grid-4" id="stats"></div>
+        <div class="grid" style="grid-template-columns:2fr 1fr">
+            <div class="card chart-card"><h3 style="margin-bottom:1rem">Inventory Overview</h3><canvas id="c1"></canvas></div>
+            <div class="card"><h3 style="margin-bottom:1rem">Quick Actions</h3>
+                <a href="addItem.html" class="btn btn-full" style="margin-bottom:.8rem">➕ Add New Item</a>
+                <a href="requests.html" class="btn btn-outline btn-full" style="margin-bottom:.8rem">📥 View Requests</a>
+                <a href="expiring.html" class="btn btn-red btn-full">⏰ Check Expiring</a>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+const API='http://localhost:3000',u=JSON.parse(localStorage.getItem('v4_user'));
+if(!u||u.role!=='Hotel') location.href='roleSelect.html';
+document.getElementById('uname').innerText=u.name;
+(async()=>{
+    const a=(await(await fetch(API+'/getAnalytics')).json()).analytics;
+    document.getElementById('stats').innerHTML=`
+        <div class="card stat purple"><div class="num">${a.totalItems}</div><div class="label">Total Items</div></div>
+        <div class="card stat green"><div class="num">${a.available}</div><div class="label">Available</div></div>
+        <div class="card stat yellow"><div class="num">${a.assigned}</div><div class="label">Assigned</div></div>
+        <div class="card stat cyan"><div class="num">${a.totalReq}</div><div class="label">Requests</div></div>`;
+    new Chart(document.getElementById('c1'),{type:'line',data:{labels:a.categories.map(c=>c.category),datasets:[{label:'Stock',data:a.categories.map(c=>c.total),borderColor:'#6366f1',backgroundColor:'rgba(99,102,241,.1)',fill:true,tension:.4}]},options:{scales:{x:{ticks:{color:'#94a3b8'}},y:{ticks:{color:'#94a3b8'}}},plugins:{legend:{labels:{color:'#94a3b8'}}}}});
+})();
+</script>
+<!-- AI Chatbot Widget -->
+<script src="chatbot.js"></script>
+</body>
+</html>

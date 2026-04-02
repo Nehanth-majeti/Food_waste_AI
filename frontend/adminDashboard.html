@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Admin Dashboard</title><link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script></head>
+<body>
+<div class="layout">
+    <div class="sidebar">
+        <div class="brand"><span>🛡️</span> Admin Panel</div>
+        <a href="adminDashboard.html" class="active"><span class="icon">📊</span> Dashboard</a>
+        <a href="inventory.html"><span class="icon">📦</span> All Items</a>
+        <a href="expiring.html"><span class="icon">⏰</span> Expiring</a>
+        <a href="aiSuggestions.html"><span class="icon">🤖</span> AI Suggestions</a>
+        <a href="requests.html"><span class="icon">📥</span> Requests</a>
+        <a href="analytics.html"><span class="icon">📈</span> Analytics</a>
+        <a href="roleSelect.html" style="margin-top:auto;color:var(--red)"><span class="icon">🚪</span> Sign Out</a>
+    </div>
+    <div class="main">
+        <div class="topbar"><h1>System Overview</h1><div class="badge" id="uname"></div></div>
+        <div class="grid grid-4" id="stats"></div>
+        <div class="grid" style="grid-template-columns:1fr 1fr">
+            <div class="card chart-card"><h3 style="margin-bottom:1rem">Food Saved vs Wasted</h3><canvas id="c1"></canvas></div>
+            <div class="card chart-card"><h3 style="margin-bottom:1rem">Items by Category</h3><canvas id="c2"></canvas></div>
+        </div>
+        <h2 style="margin:1.5rem 0 1rem">Recent Users</h2>
+        <div class="tbl-wrap"><table><thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th></tr></thead><tbody id="ut"></tbody></table></div>
+    </div>
+</div>
+<script>
+const API='http://localhost:3000',u=JSON.parse(localStorage.getItem('v4_user'));
+if(!u||u.role!=='Admin') location.href='roleSelect.html';
+document.getElementById('uname').innerText=u.name;
+
+(async()=>{
+    const a=(await(await fetch(API+'/getAnalytics')).json()).analytics;
+    document.getElementById('stats').innerHTML=`
+        <div class="card stat purple"><div class="num">${a.totalItems}</div><div class="label">Total Items</div></div>
+        <div class="card stat green"><div class="num">${a.saved}</div><div class="label">Saved</div></div>
+        <div class="card stat yellow"><div class="num">${a.totalReq}</div><div class="label">Requests</div></div>
+        <div class="card stat cyan"><div class="num">${a.totalDeliv}</div><div class="label">Deliveries</div></div>`;
+    new Chart(document.getElementById('c1'),{type:'doughnut',data:{labels:['Saved','Available','Wasted'],datasets:[{data:[a.saved,a.available,a.wasted],backgroundColor:['#22c55e','#6366f1','#ef4444']}]},options:{plugins:{legend:{labels:{color:'#94a3b8'}}}}});
+    new Chart(document.getElementById('c2'),{type:'bar',data:{labels:a.categories.map(c=>c.category),datasets:[{label:'Qty',data:a.categories.map(c=>c.total),backgroundColor:'#6366f1',borderRadius:6}]},options:{scales:{x:{ticks:{color:'#94a3b8'}},y:{ticks:{color:'#94a3b8'}}},plugins:{legend:{display:false}}}});
+    const us=(await(await fetch(API+'/getUsers')).json()).users;
+    document.getElementById('ut').innerHTML=us.map(u=>`<tr><td>${u.id}</td><td>${u.name}</td><td>${u.email}</td><td><span class="tag tag-fresh">${u.role}</span></td></tr>`).join('');
+})();
+</script>
+</body>
+</html>

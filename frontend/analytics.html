@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Analytics</title><link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script></head>
+<body>
+<div class="layout">
+    <div class="sidebar">
+        <div class="brand"><span>📈</span> Analytics</div>
+        <a href="#" id="dashLink"><span class="icon">📊</span> Dashboard</a>
+        <a href="inventory.html"><span class="icon">📦</span> All Items</a>
+        <a href="expiring.html"><span class="icon">⏰</span> Expiring</a>
+        <a href="aiSuggestions.html"><span class="icon">🤖</span> AI Suggestions</a>
+        <a href="analytics.html" class="active"><span class="icon">📈</span> Analytics</a>
+        <a href="roleSelect.html" style="margin-top:auto;color:var(--red)"><span class="icon">🚪</span> Sign Out</a>
+    </div>
+    <div class="main">
+        <div class="topbar"><h1>📈 System Analytics</h1></div>
+        <div class="grid grid-4" id="stats"></div>
+        <div class="grid" style="grid-template-columns:1fr 1fr">
+            <div class="card chart-card"><h3 style="margin-bottom:1rem">Waste vs Saved</h3><canvas id="c1"></canvas></div>
+            <div class="card chart-card"><h3 style="margin-bottom:1rem">Items by Category</h3><canvas id="c2"></canvas></div>
+        </div>
+        <div class="grid" style="grid-template-columns:1fr;margin-top:1.5rem">
+            <div class="card chart-card"><h3 style="margin-bottom:1rem">Monthly Trend</h3><canvas id="c3"></canvas></div>
+        </div>
+    </div>
+</div>
+<script>
+const API='http://localhost:3000',u=JSON.parse(localStorage.getItem('v4_user'));
+if(!u) location.href='roleSelect.html';
+document.getElementById('dashLink').href=u.role==='Admin'?'adminDashboard.html':u.role==='Hotel'?'hotelDashboard.html':'ngoDashboard.html';
+(async()=>{
+    const a=(await(await fetch(API+'/getAnalytics')).json()).analytics;
+    document.getElementById('stats').innerHTML=`
+        <div class="card stat purple"><div class="num">${a.totalItems}</div><div class="label">Total Items</div></div>
+        <div class="card stat green"><div class="num">${a.saved}</div><div class="label">Food Saved</div></div>
+        <div class="card stat red"><div class="num">${a.wasted}</div><div class="label">Food Wasted</div></div>
+        <div class="card stat cyan"><div class="num">${a.totalDeliv}</div><div class="label">Deliveries</div></div>`;
+    new Chart(document.getElementById('c1'),{type:'pie',data:{labels:['Saved','Available','Wasted'],datasets:[{data:[a.saved,a.available,a.wasted],backgroundColor:['#22c55e','#6366f1','#ef4444']}]},options:{plugins:{legend:{labels:{color:'#94a3b8'}}}}});
+    new Chart(document.getElementById('c2'),{type:'bar',data:{labels:a.categories.map(c=>c.category),datasets:[{label:'Quantity',data:a.categories.map(c=>c.total),backgroundColor:['#6366f1','#22c55e','#eab308','#06b6d4','#f43f5e','#a855f7'],borderRadius:8}]},options:{scales:{x:{ticks:{color:'#94a3b8'}},y:{ticks:{color:'#94a3b8'}}},plugins:{legend:{display:false}}}});
+    new Chart(document.getElementById('c3'),{type:'line',data:{labels:['Jan','Feb','Mar','Apr','May','Jun'],datasets:[{label:'Saved',data:[12,19,8,25,22,30],borderColor:'#22c55e',backgroundColor:'rgba(34,197,94,.1)',fill:true,tension:.4},{label:'Wasted',data:[8,5,12,3,6,2],borderColor:'#ef4444',backgroundColor:'rgba(239,68,68,.1)',fill:true,tension:.4}]},options:{scales:{x:{ticks:{color:'#94a3b8'}},y:{ticks:{color:'#94a3b8'}}},plugins:{legend:{labels:{color:'#94a3b8'}}}}});
+})();
+</script>
+</body>
+</html>

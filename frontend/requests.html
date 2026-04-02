@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Requests</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<div class="layout">
+    <div class="sidebar">
+        <div class="brand"><span>📥</span> Requests</div>
+        <a href="#" id="dashLink"><span class="icon">📊</span> Dashboard</a>
+        <a href="inventory.html"><span class="icon">📦</span> All Items</a>
+        <a href="expiring.html"><span class="icon">⏰</span> Expiring</a>
+        <a href="requests.html" class="active"><span class="icon">📥</span> Requests</a>
+        <a href="roleSelect.html" style="margin-top:auto;color:var(--red)"><span class="icon">🚪</span> Sign Out</a>
+    </div>
+    <div class="main">
+        <div class="topbar"><h1>📥 Request Management</h1></div>
+        <div class="tbl-wrap"><table><thead><tr><th>Req ID</th><th>Food Item</th><th>Qty</th><th>NGO</th><th>Status</th><th>Actions</th></tr></thead><tbody id="tb"></tbody></table></div>
+    </div>
+</div>
+<script>
+const API='http://localhost:3000',u=JSON.parse(localStorage.getItem('v4_user'));
+if(!u) location.href='roleSelect.html';
+document.getElementById('dashLink').href=u.role==='Admin'?'adminDashboard.html':u.role==='Hotel'?'hotelDashboard.html':'ngoDashboard.html';
+async function load(){
+    const url=u.role==='Hotel'?API+'/getRequests?hotel_id='+u.id:API+'/getRequests';
+    const r=await(await fetch(url)).json();
+    if(r.success){
+        document.getElementById('tb').innerHTML=r.requests.map(q=>{
+            const stcls=q.status==='Approved'?'tag-fresh':q.status==='Rejected'?'tag-critical':'tag-soon';
+            const actions=u.role==='Hotel'&&q.status==='Pending'
+                ?`<button class="btn btn-green btn-sm" onclick="act(${q.id},'accept')">✓ Accept</button> <button class="btn btn-red btn-sm" onclick="act(${q.id},'reject')">✗ Reject</button>`
+                :'—';
+            return`<tr><td>REQ-${q.id}</td><td>${q.item_name}</td><td>${q.qty||'—'}</td><td>${q.ngo_name}</td><td><span class="tag ${stcls}">${q.status}</span></td><td>${actions}</td></tr>`
+        }).join('')||'<tr><td colspan="6" style="color:var(--muted)">No requests found.</td></tr>';
+    }
+}
+async function act(id,a){
+    const ep=a==='accept'?'/acceptRequest':'/rejectRequest';
+    await fetch(API+ep,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({request_id:id})});
+    load();
+}
+load();
+</script>
+</body>
+</html>

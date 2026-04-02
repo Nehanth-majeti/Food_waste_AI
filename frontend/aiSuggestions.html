@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>AI Suggestions</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<div class="layout">
+    <div class="sidebar">
+        <div class="brand"><span>🤖</span> AI Module</div>
+        <a href="#" id="dashLink"><span class="icon">📊</span> Dashboard</a>
+        <a href="inventory.html"><span class="icon">📦</span> All Items</a>
+        <a href="expiring.html"><span class="icon">⏰</span> Expiring</a>
+        <a href="aiSuggestions.html" class="active"><span class="icon">🤖</span> AI Suggestions</a>
+        <a href="requests.html"><span class="icon">📥</span> Requests</a>
+        <a href="roleSelect.html" style="margin-top:auto;color:var(--red)"><span class="icon">🚪</span> Sign Out</a>
+    </div>
+    <div class="main">
+        <div class="topbar"><h1>🤖 AI-Powered Suggestions</h1></div>
+        <p style="color:var(--muted);margin-bottom:1.5rem">The AI module analyzes current inventory expiry timelines and recommends optimal actions.</p>
+        <div id="sug"></div>
+    </div>
+</div>
+<script>
+const API='http://localhost:3000',u=JSON.parse(localStorage.getItem('v4_user'));
+if(!u) location.href='roleSelect.html';
+document.getElementById('dashLink').href=u.role==='Admin'?'adminDashboard.html':u.role==='Hotel'?'hotelDashboard.html':'ngoDashboard.html';
+(async()=>{
+    const r=await(await fetch(API+'/getSuggestions')).json();
+    const c=document.getElementById('sug');
+    if(r.success && r.suggestions.length>0){
+        c.innerHTML=r.suggestions.map(s=>{
+            const border=s.priority==='high'?'var(--red)':s.priority==='medium'?'var(--yellow)':'var(--green)';
+            const icon=s.priority==='high'?'🚨':s.priority==='medium'?'⚠️':'💡';
+            return`<div class="card" style="margin-bottom:1rem;border-left:4px solid ${border};padding:1.2rem 1.5rem">
+                <div style="display:flex;align-items:center;gap:.8rem">
+                    <span style="font-size:1.5rem">${icon}</span>
+                    <div><strong>${s.item}</strong><p style="color:var(--muted);margin-top:.3rem;font-size:.9rem">${s.action}</p></div>
+                    <span class="tag ${s.priority==='high'?'tag-critical':s.priority==='medium'?'tag-soon':'tag-fresh'}" style="margin-left:auto">${s.priority.toUpperCase()}</span>
+                </div></div>`
+        }).join('');
+    } else c.innerHTML='<div class="card"><p style="color:var(--green)">✅ All items are fresh. No urgent actions needed.</p></div>';
+})();
+</script>
+</body>
+</html>

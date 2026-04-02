@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Inventory</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<div class="layout">
+    <div class="sidebar">
+        <div class="brand"><span>📦</span> Inventory</div>
+        <a href="#" id="dashLink"><span class="icon">📊</span> Dashboard</a>
+        <a href="inventory.html" class="active"><span class="icon">📦</span> All Items</a>
+        <a href="expiring.html"><span class="icon">⏰</span> Expiring</a>
+        <a href="aiSuggestions.html"><span class="icon">🤖</span> AI Suggestions</a>
+        <a href="requests.html"><span class="icon">📥</span> Requests</a>
+        <a href="analytics.html"><span class="icon">📈</span> Analytics</a>
+        <a href="roleSelect.html" style="margin-top:auto;color:var(--red)"><span class="icon">🚪</span> Sign Out</a>
+    </div>
+    <div class="main">
+        <div class="topbar"><h1>📦 Full Inventory</h1></div>
+        <div class="search-bar">
+            <input type="text" id="search" placeholder="🔍 Search by name..." oninput="filter()">
+            <select id="catFilter" onchange="filter()"><option value="">All Categories</option></select>
+        </div>
+        <div class="grid" id="items"></div>
+    </div>
+</div>
+<script>
+const API='http://localhost:3000',u=JSON.parse(localStorage.getItem('v4_user'));
+if(!u) location.href='roleSelect.html';
+document.getElementById('dashLink').href=u.role==='Admin'?'adminDashboard.html':u.role==='Hotel'?'hotelDashboard.html':'ngoDashboard.html';
+let allItems=[];
+async function load(){
+    const url=u.role==='Hotel'?API+'/getItems?hotel_id='+u.id:API+'/getItems';
+    const r=await(await fetch(url)).json();
+    if(r.success){allItems=r.items;
+        const cats=[...new Set(r.items.map(i=>i.category))];
+        document.getElementById('catFilter').innerHTML='<option value="">All Categories</option>'+cats.map(c=>`<option>${c}</option>`).join('');
+        render(r.items);
+    }
+}
+function getTag(exp){const h=(new Date(exp)-new Date())/36e5;if(h<=0)return['Expired','tag-expired'];if(h<=24)return['Critical','tag-critical'];if(h<=72)return['Expiring','tag-soon'];return['Fresh','tag-fresh']}
+function render(items){
+    document.getElementById('items').innerHTML=items.length===0?'<p style="color:var(--muted)">No items.</p>':items.map(i=>{
+        const[lbl,cls]=getTag(i.expiry);
+        const img=i.image?API+i.image:'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&q=80';
+        return`<div class="card item-card"><div class="img-wrap"><img src="${img}" onerror="this.src='https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&q=80'"></div><div class="info"><div class="cat">${i.category}</div><h3>${i.name}</h3><div class="meta"><span>${i.qty} qty</span><span class="tag ${cls}">${lbl}</span></div><div class="meta" style="margin-top:.4rem"><span>Status: ${i.status}</span></div></div></div>`
+    }).join('');
+}
+function filter(){const s=document.getElementById('search').value.toLowerCase(),c=document.getElementById('catFilter').value;render(allItems.filter(i=>i.name.toLowerCase().includes(s)&&(!c||i.category===c)))}
+load();
+</script>
+</body>
+</html>

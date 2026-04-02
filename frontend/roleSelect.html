@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Food Waste AI System</title><link rel="stylesheet" href="style.css"></head>
+<body class="role-page">
+    <h1 style="font-size:2.8rem;font-weight:800;background:linear-gradient(135deg,#6366f1,#22c55e);-webkit-background-clip:text;-webkit-text-fill-color:transparent">Food Waste AI</h1>
+    <p style="color:var(--muted);font-size:1.1rem;margin-top:.8rem">Select your operational role to continue</p>
+    <div class="role-grid">
+        <div class="role-card" onclick="go('Admin')"><div class="ico">🛡️</div><h3>Admin</h3><p>Full system oversight, analytics, and user management.</p></div>
+        <div class="role-card" onclick="go('Hotel')"><div class="ico">🏨</div><h3>Hotel / Restaurant</h3><p>Manage inventory, upload items, approve NGO requests.</p></div>
+        <div class="role-card" onclick="go('NGO')"><div class="ico">🤝</div><h3>NGO</h3><p>Browse surplus food, send requests, track deliveries.</p></div>
+    </div>
+    <script>function go(r){localStorage.setItem('v4_role',r);location.href='login.html'}</script>
+</body>
+</html>

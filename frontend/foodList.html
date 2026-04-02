@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Food Map | SustainAI</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="script.js"></script>
+</head>
+<body>
+    <header>
+        <div class="logo">SustainAI <span style="font-size:1rem;color:var(--text-muted)">NGO Portal</span></div>
+        <nav>
+            <a href="home.html">Home</a>
+            <a href="status.html">Track Deliveries</a>
+            <a href="#" onclick="logout()">Logout</a>
+        </nav>
+    </header>
+
+    <div class="container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+            <h2>Live Food Recommendations</h2>
+            <button onclick="loadFood()" class="btn btn-outline" style="width:auto">Refresh Scanners</button>
+        </div>
+        
+        <div class="grid" id="foodContainer"></div>
+    </div>
+
+    <script>
+        // Allow all users to view the food map
+        checkAuth(); 
+        
+        async function loadFood() {
+            const container = document.getElementById('foodContainer');
+            container.innerHTML = '<p>Initiating AI scans...</p>';
+            
+            const res = await apiCall('/getFood');
+            if(res && res.success) {
+                container.innerHTML = '';
+                if(res.food.length === 0) {
+                    container.innerHTML = '<p>No surplus food registered currently. Try again soon.</p>';
+                }
+                res.food.forEach(item => {
+                    const expiryHours = ((new Date(item.expiry_time) - new Date()) / 3600000).toFixed(1);
+                    const isVeg = item.category.toLowerCase().includes('veg') && !item.category.toLowerCase().includes('non-veg');
+                    const badgeClass = isVeg ? 'veg' : 'non-veg';
+                    
+                    const imgUrl = item.image ? `http://localhost:3000${item.image}` : 'https://images.unsplash.com/photo-1498837167922-41c53b4f0f14?auto=format&fit=crop&q=80&w=400';
+
+                    // Only show Generate Request button to NGOs
+                    const requestButtonHtml = user && user.role === 'NGO' 
+                        ? `<button onclick="requestFood(${item.id})" class="btn btn-full">Generate Request</button>`
+                        : `<button class="btn btn-full" disabled style="opacity: 0.5; cursor: not-allowed;">NGOs Only</button>`;
+
+                    const div = document.createElement('div');
+                    div.className = 'glass-card hover-card';
+                    div.style.padding = '1.5rem';
+                    div.innerHTML = `
+                        <div class="food-img-container">
+                            <img src="${imgUrl}" alt="Food" onerror="this.src='https://images.unsplash.com/photo-1498837167922-41c53b4f0f14?auto=format&fit=crop&q=80&w=400';">
+                        </div>
+                        <span class="badge ${badgeClass}">${item.category}</span>
+                        <h3 style="margin-top:0.5rem">${item.name}</h3>
+                        <p style="margin-bottom:0.8rem; font-size:0.9rem;">${item.description || 'No specific description provided.'}</p>
+                        
+                        <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:var(--text-muted); margin-bottom:1rem;">
+                            <span>🏢 ${item.hotel_name}</span>
+                            <span style="color:var(--primary)">${item.quantity} Qty</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:var(--text-muted); margin-bottom:1.5rem;">
+                            <span>⏳ ${expiryHours}h to expiry</span>
+                            <span>📍 ${item.location}</span>
+                        </div>
+                        
+                        ${requestButtonHtml}
+                    `;
+                    container.appendChild(div);
+                });
+            }
+        }
+
+        async function requestFood(foodId) {
+            window.location.href = `requestFood.html?id=${foodId}`;
+        }
+        
+        window.onload = loadFood;
+    </script>
+</body>
+</html>
